@@ -16,9 +16,11 @@ mutable struct Queue
     nextTime::Float64
     history::Vector{Tuple{Int16,Int16}}
     function Queue(ID,nextTime)
-         new(ID,[],nextTime,[])
+        new(ID,[],nextTime,[])
      end
 end
+
+getNextTime(i::ContinuousUnivariateDistribution,time) = rand(i)+time
 
 mutable struct Simulation
     N::Int16
@@ -39,16 +41,14 @@ mutable struct Simulation
         cycle=30,
         green_time=15,
         trip_length=10,
-    )
+        )
         arrival_rate = saturation*green_time/(trip_length*cycle)
         interval_generator = Exponential(1./arrival_rate)
-        queues = [Queue(v,getNextTime(interval_generator,0)) for v=1:N]
+        queues = [Queue(v,getNextTime(interval_generator,0)) for v in 1:N]
         new(N,cycle,green_time,trip_length,saturation,arrival_rate,interval_generator,[],[],queues,false,0)
     end
 end
 
-getNextTime(i::ContinuousUnivariateDistribution,time) = rand(i)+time
-#
 function tick(s::Simulation)
     s.time+=1
     if s.time%s.green_time == 0
@@ -56,7 +56,7 @@ function tick(s::Simulation)
     end
 
     if s.green
-        switches = []
+        switches = Vector{Tuple{Car,Vector{Car}}}([])
         for (i,queue)=enumerate(s.queues)
             if length(queue.cars)>0
                 car = pop!(queue.cars)
@@ -71,8 +71,8 @@ function tick(s::Simulation)
                 end
             end
         end
-        for switch = switches
-            unshift!(switch[2],switch[1])
+        for (car,queue) = switches
+            unshift!(queue,car)
         end
     end
 
